@@ -11,6 +11,9 @@ include("server")
 // GUI app
 include("gui-app")
 
+// Observer
+include("observer")
+
 // Bot API
 include("bot-api:java")
 include("bot-api:dotnet")
