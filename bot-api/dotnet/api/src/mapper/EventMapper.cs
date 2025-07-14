@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Robocode.TankRoyale.BotApi.Events;
+using Newtonsoft.Json.Linq;
+using Robocode.TankRoyale.BotApi.Internal.Json;
 
 namespace Robocode.TankRoyale.BotApi.Mapper;
 
-public static class EventMapper
+static class EventMapper
 {
-    public static TickEvent Map(string json, IBaseBot baseBot)
+    internal static TickEvent Map(string json, IBaseBot baseBot)
     {
-        var tickEvent = JsonConvert.DeserializeObject<Schema.TickEventForBot>(json);
+        var tickEvent = JsonConverter.FromJson<Schema.TickEventForBot>(json);
         if (tickEvent == null)
             throw new BotException("TickEventForBot is missing in JSON message from server");
 
-        var jsonTickEvent = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
+        var jsonTickEvent = JsonConverter.FromJson<Dictionary<string, object>>(json);
         if (jsonTickEvent == null)
             throw new BotException("TickEventForBot dictionary is missing in JSON message from server");
 
@@ -147,7 +147,7 @@ public static class EventMapper
             var bytes = Convert.FromBase64String(source.Message);
             var decodedString = System.Text.Encoding.UTF8.GetString(bytes);
 
-            var messageObject = JsonConvert.DeserializeObject(decodedString, type);
+            var messageObject = JsonConverter.FromJson(decodedString, type);
 
             return new TeamMessageEvent(
                 source.TurnNumber,

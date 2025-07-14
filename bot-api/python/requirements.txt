@@ -1,3 +1,7 @@
-pillow>=11
-setuptools>=75
-PyYAML>6
+drawsvg>=2
+pip>=24
+PyYAML>=6
+setuptools>=77
+pycountry>=24
+websockets>=15
+mypy

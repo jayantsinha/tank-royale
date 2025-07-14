@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
+using JetBrains.Annotations;
 using Robocode.TankRoyale.BotApi.Events;
-using SvgNet.Interfaces;
+using Robocode.TankRoyale.BotApi.Graphics;
 
 namespace Robocode.TankRoyale.BotApi;
 
 /// <summary>
 /// Interface containing the core API for a bot.
 /// </summary>
+[PublicAPI]
 public interface IBaseBot
 {
     /// <summary>
@@ -256,7 +257,7 @@ public interface IBaseBot
     void ClearEvents();
 
     /// <summary>
-    /// Set or get the turn rate of the bot, which can be positive and negative. The turn rate is
+    /// Sets or get the turn rate of the bot, which can be positive and negative. The turn rate is
     /// measured in degrees per turn. The turn rate is added to the current direction of the bot.
     /// But it is also added to the current direction of the gun and radar. This is because the gun
     /// is mounted on the body, and hence turns with the body. The radar is mounted on the gun and
@@ -298,7 +299,7 @@ public interface IBaseBot
     double MaxTurnRate { get; set; }
 
     /// <summary>
-    /// Set or get the turn rate of the gun, which can be positive and negative. The gun turn rate
+    /// Sets or get the turn rate of the gun, which can be positive and negative. The gun turn rate
     /// is measured in degrees per turn. The turn rate is added to the current turn direction of
     /// the gun. But it is also added to the current direction of the radar. This is because the
     /// radar is mounted on the gun, and hence moves with the gun. You can compensate for the turn
@@ -339,7 +340,7 @@ public interface IBaseBot
     double MaxGunTurnRate { get; set; }
 
     /// <summary>
-    /// Set or get the turn rate of the radar, which can be positive and negative. The radar turn
+    /// Sets or get the turn rate of the radar, which can be positive and negative. The radar turn
     /// rate is measured in degrees per turn. The turn rate is added to the current direction of
     /// the radar. Note that besides the turn rate of the radar, the turn rates of the bot and gun
     /// are also added to the radar direction, as the radar moves with the gun, which is mounted on
@@ -380,7 +381,7 @@ public interface IBaseBot
     double MaxRadarTurnRate { get; set; }
 
     /// <summary>
-    /// Set or get the target speed for the bot in units per turn. The target speed is the speed
+    /// Sets or get the target speed for the bot in units per turn. The target speed is the speed
     /// you want to achieve eventually, which could take one to several turns depending on the
     /// current speed. For example, if the bot is moving forward with max speed, and then must
     /// change to move backward at full speed, the bot will have to first decelerate/brake its
@@ -510,7 +511,7 @@ public interface IBaseBot
     void SetFireAssist(bool enable);
 
     /// <summary>
-    /// Set this property during an event handler to control continuing or restarting the event handler,
+    /// Sets this property during an event handler to control continuing or restarting the event handler,
     /// when a new event occurs again for the same event handler while processing an earlier event.
     /// </summary>
     /// <example>
@@ -630,7 +631,7 @@ public interface IBaseBot
     bool RemoveCustomEvent(Condition condition);
 
     /// <summary>
-    /// Set the bot to stop all movement including turning the gun and radar. The remaining movement is
+    /// Sets the bot to stop all movement including turning the gun and radar. The remaining movement is
     /// saved for a call to <see cref="SetResume"/>. This method has no effect, if it has already been
     /// called.
     ///
@@ -646,7 +647,7 @@ public interface IBaseBot
     void SetStop();
 
     /// <summary>
-    /// Set the bot to stop all movement including turning the gun and radar. The remaining movement is
+    /// Sets the bot to stop all movement including turning the gun and radar. The remaining movement is
     /// saved for a call to <see cref="SetResume"/>.
     ///
     /// This method will first be executed when <see cref="IBaseBot.Go"/> is called making it possible to
@@ -664,10 +665,8 @@ public interface IBaseBot
     void SetStop(bool overwrite);
 
     /// <summary>
-    /// Sets the bot to scan (again) with the radar. This method is useful if the radar has not been
-    /// turning and thereby will not be able to automatically scan bots. This method is useful when the
-    /// bot movement has stopped, e.g. when <see cref="IBot.Stop()"/> has been called. The last radar direction
-    /// and sweep angle will be used for rescanning for bots.
+    /// Sets the bot to resume movement after having been stopped, e.g. when <see cref="IBot.Stop()"/> has been
+    /// called. The last radar direction and sweep angle will be used for rescanning for bots.
     ///
     /// This method will first be executed when <see cref="IBaseBot.Go"/> is called making it possible to
     /// call other set methods before execution. This makes it possible to set the bot to move,
@@ -848,7 +847,8 @@ public interface IBaseBot
     /// </summary>
     /// <example>
     /// var g = Graphics;
-    /// g.FillRectangle(Brushes.Blue, 50, 50, 100, 100);
+    /// g.SetStrokeColor(Color.Blue);
+    /// g.FillRectangle(50, 50, 100, 100);
     /// </example>
     /// <value>A graphics canvas to use for painting graphical objects making debugging easier.</value>
     IGraphics Graphics { get; }
@@ -964,15 +964,24 @@ public interface IBaseBot
     void OnScannedBot(ScannedBotEvent scannedBotEvent);
 
     /// <summary>
-    /// The event handler triggered when the bot has skipped a turn. This event occurs if the bot
-    /// did not take any action in a specific turn. That is, <see cref="Go"/> was not called before
-    /// the turn timeout occurred for the turn. If the bot does not take action for multiple turns
-    /// in a row, it will receive a <see cref="SkippedTurnEvent"/> for each turn where it did not
-    /// take action. When the bot is skipping a turn, the server did not receive the message from
-    /// the bot, and the server will use the newest received instructions for target speed, turn
-    /// rates, firing, etc.
+    /// Handles the event triggered when the bot skips a turn.
+    ///
+    /// A turn is skipped if the bot does not send any instructions to the server (via the <see cref="Go()" /> method)
+    /// before the turn timeout occurs. When this happens, the server continues using the last received
+    /// set of actions, such as movement, turning rates, or firing commands.
     /// </summary>
-    /// <param name="skippedTurnEvent">Event details from the game.</param>
+    /// <remarks>
+    /// Reasons for skipped turns may include:
+    /// <list type="bullet">
+    ///   <item><description>Excessive processing or delays in the bot's logic, leading to a timeout.</description></item>
+    ///   <item><description>Failure to invoke the <see cref="Go()" /> method in the current turn.</description></item>
+    ///   <item><description>Misaligned or unintended logic in the bot's turn-handling code.</description></item>
+    /// </list>
+    ///
+    /// This method can be overridden to define custom behavior for handling skipped turns, such as
+    /// logging the event, debugging performance issues, or modifying the bot's logic to avoid future skips.
+    /// </remarks>
+    /// <param name="skippedTurnEvent">An event containing details about the skipped turn.</param>
     void OnSkippedTurn(SkippedTurnEvent skippedTurnEvent);
 
     /// <summary>
@@ -1106,10 +1115,30 @@ public interface IBaseBot
     double NormalizeAbsoluteAngle(double angle);
 
     /// <summary>
-    /// Normalizes an angle to an relative angle into the range [-180,180[
+    /// Normalizes an angle to a relative angle in the range [-180, 180).
+    /// <br/><br/>
+    /// A <b>relative angle</b> represents the shortest angular distance between two directions.
+    /// For example:
+    /// <list type="bullet">
+    ///   <item>
+    ///     <description>
+    ///     An angle of 190° is equivalent to -170° in relative terms, as turning -170° is
+    ///     shorter than turning 190° to reach the same direction.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///     Similarly, -190° is normalized to 170°, as turning 170° is the shorter path.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    ///
+    /// This method ensures that any input angle is adjusted to this range, making it easier
+    /// to work with directional calculations where relative angles are more intuitive
+    /// (e.g., determining how much to turn to face a specific direction).
     /// </summary>
-    /// <param name="angle">Is the angle to normalize.</param>
-    /// <returns>The normalized relative angle.</returns>
+    /// <param name="angle">The angle to normalize, in degrees.</param>
+    /// <returns>A normalized relative angle in the range [-180, 180).</returns>
     double NormalizeRelativeAngle(double angle);
 
     /// <summary>

@@ -6,6 +6,7 @@
 .idea/
 .vscode/
 .gradle/
+.venv/
 .vs/
 Folder.DotSettings.user
 
@@ -27,5 +28,7 @@ generated/
 /games.properties
 /server.properties
 /config.properties
+/*.battle.gz
 
 /.codiumai/
+/.kotlin

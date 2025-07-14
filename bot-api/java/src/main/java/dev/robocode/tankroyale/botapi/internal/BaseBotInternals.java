@@ -1,31 +1,24 @@
 package dev.robocode.tankroyale.botapi.internal;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import dev.robocode.tankroyale.botapi.BotInfo;
-import dev.robocode.tankroyale.botapi.BulletState;
-import dev.robocode.tankroyale.botapi.GameSetup;
 import dev.robocode.tankroyale.botapi.*;
-import dev.robocode.tankroyale.botapi.InitialPosition;
-import dev.robocode.tankroyale.botapi.events.BulletFiredEvent;
-import dev.robocode.tankroyale.botapi.events.RoundStartedEvent;
-import dev.robocode.tankroyale.botapi.events.SkippedTurnEvent;
 import dev.robocode.tankroyale.botapi.events.*;
-import dev.robocode.tankroyale.botapi.mapper.EventMapper;
-import dev.robocode.tankroyale.botapi.mapper.GameSetupMapper;
+import dev.robocode.tankroyale.botapi.graphics.Color;
+import dev.robocode.tankroyale.botapi.graphics.IGraphics;
+import dev.robocode.tankroyale.botapi.internal.json.JsonConverter;
 import dev.robocode.tankroyale.botapi.util.ColorUtil;
-import dev.robocode.tankroyale.schema.*;
+import dev.robocode.tankroyale.schema.BotIntent;
+import dev.robocode.tankroyale.schema.Message;
+import dev.robocode.tankroyale.schema.ServerHandshake;
+import dev.robocode.tankroyale.schema.TeamMessage;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletionStage;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,11 +26,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static dev.robocode.tankroyale.botapi.Constants.*;
 import static dev.robocode.tankroyale.botapi.IBaseBot.MAX_NUMBER_OF_TEAM_MESSAGES_PER_TURN;
 import static dev.robocode.tankroyale.botapi.IBaseBot.TEAM_MESSAGE_MAX_SIZE;
-import static dev.robocode.tankroyale.botapi.mapper.ResultsMapper.map;
 import static dev.robocode.tankroyale.botapi.util.MathUtil.clamp;
 import static java.lang.Math.*;
 import static java.net.http.WebSocket.Builder;
-import static java.net.http.WebSocket.Listener;
 
 public final class BaseBotInternals {
     private static final String DEFAULT_SERVER_URL = "ws://localhost:7654";
@@ -76,7 +67,7 @@ public final class BaseBotInternals {
     private final EventQueue eventQueue;
 
     private final BotEventHandlers botEventHandlers;
-    private final InstantEventHandlers instantEventHandlers = new InstantEventHandlers();
+    private final InternalEventHandlers internalEventHandlers = new InternalEventHandlers();
     private final Set<Condition> conditions = new CopyOnWriteArraySet<>();
 
     private final Object nextTurnMonitor = new Object();
@@ -100,8 +91,6 @@ public final class BaseBotInternals {
 
     private final double absDeceleration = abs(DECELERATION);
 
-    private final Gson gson = GsonFactory.createGson();
-
     private int eventHandlingDisabledTurn;
 
     private RecordingPrintStream recordedStdOut;
@@ -113,7 +102,13 @@ public final class BaseBotInternals {
 
     public BaseBotInternals(IBaseBot baseBot, BotInfo botInfo, URI serverUrl, String serverSecret) {
         this.baseBot = baseBot;
-        this.botInfo = (botInfo == null) ? EnvVars.getBotInfo() : botInfo;
+
+        if (botInfo == null) {
+            // use environment variables for configuration
+            botInfo = EnvVars.getBotInfo();
+        }
+
+        this.botInfo = botInfo;
 
         this.botEventHandlers = new BotEventHandlers(baseBot);
         this.eventQueue = new EventQueue(this, botEventHandlers);
@@ -139,9 +134,9 @@ public final class BaseBotInternals {
     }
 
     private void subscribeToEvents() {
-        instantEventHandlers.onRoundStarted.subscribe(this::onRoundStarted, 100);
-        instantEventHandlers.onNextTurn.subscribe(this::onNextTurn, 100);
-        instantEventHandlers.onBulletFired.subscribe(this::onBulletFired, 100);
+        internalEventHandlers.onRoundStarted.subscribe(this::onRoundStarted, 100);
+        internalEventHandlers.onNextTurn.subscribe(this::onNextTurn, 100);
+        internalEventHandlers.onBulletFired.subscribe(this::onBulletFired, 100);
     }
 
     public void setRunning(boolean isRunning) {
@@ -222,8 +217,8 @@ public final class BaseBotInternals {
         botIntent.setFirepower(null);
     }
 
-    InstantEventHandlers getInstantEventHandlers() {
-        return instantEventHandlers;
+    InternalEventHandlers getInstantEventHandlers() {
+        return internalEventHandlers;
     }
 
     public List<BotEvent> getEvents() {
@@ -276,7 +271,17 @@ public final class BaseBotInternals {
         try {
             HttpClient httpClient = HttpClient.newBuilder().build();
             Builder webSocketBuilder = httpClient.newWebSocketBuilder();
-            socket = webSocketBuilder.buildAsync(serverUrl, new WebSocketListener()).join();
+            var webSocketHandler = new WebSocketHandler(
+                    this,
+                    serverUrl,
+                    serverSecret,
+                    baseBot,
+                    botInfo,
+                    botEventHandlers,
+                    internalEventHandlers,
+                    closedLatch
+            );
+            socket = webSocketBuilder.buildAsync(serverUrl, webSocketHandler).join();
         } catch (Exception ex) {
             throw new BotException("Could not create web socket for URL: " + serverUrl);
         }
@@ -298,7 +303,6 @@ public final class BaseBotInternals {
         if (turnNumber != lastExecuteTurnNumber) {
             lastExecuteTurnNumber = turnNumber;
 
-            dispatchEvents(turnNumber);
             sendIntent();
         }
         waitForNextTurn(turnNumber);
@@ -308,7 +312,7 @@ public final class BaseBotInternals {
         synchronized (this) {
             renderGraphicsToBotIntent();
             transferStdOutToBotIntent();
-            socket.sendText(gson.toJson(botIntent), true);
+            socket.sendText(JsonConverter.toJson(botIntent), true);
             botIntent.getTeamMessages().clear();
         }
     }
@@ -326,7 +330,7 @@ public final class BaseBotInternals {
 
     private void renderGraphicsToBotIntent() {
         if (getCurrentTickOrThrow().getBotState().isDebuggingEnabled()) {
-            botIntent.setDebugGraphics(graphicsState.getSVGOutput());
+            botIntent.setDebugGraphics(graphicsState.getSvgOutput());
             graphicsState.clear();
         }
     }
@@ -343,7 +347,7 @@ public final class BaseBotInternals {
                     !Thread.currentThread().isInterrupted()
             ) {
                 try {
-                    nextTurnMonitor.wait(); // Wait for next turn
+                    nextTurnMonitor.wait(); // Wait for the next turn
                 } catch (InterruptedException ex) {
                     throw new ThreadInterruptedException();
                 }
@@ -357,7 +361,7 @@ public final class BaseBotInternals {
         }
     }
 
-    private void dispatchEvents(int turnNumber) {
+    public void dispatchEvents(int turnNumber) {
         try {
             eventQueue.dispatchEvents(turnNumber);
         } catch (Exception e) {
@@ -380,6 +384,10 @@ public final class BaseBotInternals {
         return myId;
     }
 
+    void setMyId(Integer myId) {
+        this.myId = myId;
+    }
+
     public GameSetup getGameSetup() {
         if (gameSetup == null) {
             throw new BotException(GAME_NOT_RUNNING_MSG);
@@ -387,8 +395,16 @@ public final class BaseBotInternals {
         return gameSetup;
     }
 
+    void setGameSetup(GameSetup gameSetup) {
+        this.gameSetup = gameSetup;
+    }
+
     public InitialPosition getInitialPosition() {
         return initialPosition;
+    }
+
+    void setInitialPosition(InitialPosition initialPosition) {
+        this.initialPosition = initialPosition;
     }
 
     public BotIntent getBotIntent() {
@@ -406,11 +422,23 @@ public final class BaseBotInternals {
         return tickEvent;
     }
 
+    void setTickEvent(TickEvent tickEvent) {
+        this.tickEvent = tickEvent;
+    }
+
     private long getTicksStart() {
         if (tickStartNanoTime == null) {
             throw new BotException(TICK_NOT_AVAILABLE_MSG);
         }
         return tickStartNanoTime;
+    }
+
+    void setTickStartNanoTime(Long tickStartNanoTime) {
+        this.tickStartNanoTime = tickStartNanoTime;
+    }
+
+    void addEventsFromTick(TickEvent event) {
+        eventQueue.addEventsFromTick(event);
     }
 
     public int getTimeLeft() {
@@ -522,10 +550,10 @@ public final class BaseBotInternals {
      * Returns the new speed based on the current speed and distance to move.
      *
      * @param speed    is the current speed
-     * @param distance is the distance to move
+     * @param distance is the move distance
      * @return The new speed
      */
-    // Credits for this algorithm goes to Patrick Cupka (aka Voidious),
+    // Credits for this algorithm go to Patrick Cupka (aka Voidious),
     // Julian Kent (aka Skilgannon), and Positive for the original version:
     // https://robowiki.net/wiki/User:Voidious/Optimal_Velocity#Hijack_2
     double getNewTargetSpeed(double speed, double distance) {
@@ -619,6 +647,10 @@ public final class BaseBotInternals {
         return teammateIds;
     }
 
+    void setTeammateIds(Set<Integer> teammateIds) {
+        this.teammateIds = teammateIds;
+    }
+
     public boolean isTeammate(int botId) {
         return getTeammateIds().stream().anyMatch(teammateId -> botId == teammateId);
     }
@@ -639,7 +671,7 @@ public final class BaseBotInternals {
             throw new IllegalArgumentException("The 'message' of a team message cannot be null");
         }
 
-        var json = gson.toJson(message);
+        var json = JsonConverter.toJson(message);
         if (json.getBytes().length > TEAM_MESSAGE_MAX_SIZE) {
             throw new IllegalArgumentException(
                     "The team message is larger than the limit of " + TEAM_MESSAGE_MAX_SIZE + " bytes (compact JSON format)");
@@ -708,7 +740,7 @@ public final class BaseBotInternals {
         botIntent.setGunColor(toIntentColor(color));
     }
 
-    public Graphics2D getGraphics() {
+    public IGraphics getGraphics() {
         return graphicsState.getGraphics();
     }
 
@@ -725,6 +757,10 @@ public final class BaseBotInternals {
             throw new BotException(NOT_CONNECTED_TO_SERVER_MSG);
         }
         return serverHandshake;
+    }
+
+    void setServerHandshake(ServerHandshake serverHandshake) {
+        this.serverHandshake = serverHandshake;
     }
 
     private URI getServerUrlFromSetting() {
@@ -748,183 +784,5 @@ public final class BaseBotInternals {
             secret = EnvVars.getServerSecret();
         }
         return secret;
-    }
-
-    private final class WebSocketListener implements Listener {
-
-        final StringBuilder payload = new StringBuilder();
-
-        @Override
-        public void onOpen(WebSocket websocket) {
-            BaseBotInternals.this.socket = websocket; // To prevent null pointer exception
-
-            botEventHandlers.onConnected.publish(new ConnectedEvent(serverUrl));
-            Listener.super.onOpen(websocket);
-        }
-
-        @Override
-        public CompletionStage<?> onClose(WebSocket websocket, int statusCode, String reason) {
-            var disconnectedEvent = new DisconnectedEvent(serverUrl, true, statusCode, reason);
-
-            botEventHandlers.onDisconnected.publish(disconnectedEvent);
-            instantEventHandlers.onDisconnected.publish(disconnectedEvent);
-
-            closedLatch.countDown();
-            return null;
-        }
-
-        @Override
-        public void onError(WebSocket websocket, Throwable error) {
-            botEventHandlers.onConnectionError.publish(new ConnectionErrorEvent(serverUrl, error));
-
-            closedLatch.countDown();
-        }
-
-        @Override
-        public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
-            payload.append(data);
-            if (last) {
-                JsonObject jsonMsg = gson.fromJson(payload.toString(), JsonObject.class);
-                payload.delete(0, payload.length()); // clear payload buffer
-
-                JsonElement jsonType = jsonMsg.get("type");
-                if (jsonType != null) {
-                    String type = jsonType.getAsString();
-
-                    switch (dev.robocode.tankroyale.schema.Message.Type.fromValue(type)) {
-                        case TICK_EVENT_FOR_BOT:
-                            handleTick(jsonMsg);
-                            break;
-                        case ROUND_STARTED_EVENT:
-                            handleRoundStarted(jsonMsg);
-                            break;
-                        case ROUND_ENDED_EVENT_FOR_BOT:
-                            handleRoundEnded(jsonMsg);
-                            break;
-                        case GAME_STARTED_EVENT_FOR_BOT:
-                            handleGameStarted(jsonMsg);
-                            break;
-                        case GAME_ENDED_EVENT_FOR_BOT:
-                            handleGameEnded(jsonMsg);
-                            break;
-                        case SKIPPED_TURN_EVENT:
-                            handleSkippedTurn(jsonMsg);
-                            break;
-                        case SERVER_HANDSHAKE:
-                            handleServerHandshake(jsonMsg);
-                            break;
-                        case GAME_ABORTED_EVENT:
-                            handleGameAborted();
-                            break;
-                        default:
-                            throw new BotException("Unsupported WebSocket message type: " + type);
-                    }
-                }
-            }
-            return Listener.super.onText(webSocket, data, last);
-        }
-
-        private void handleTick(JsonObject jsonMsg) {
-            if (getEventHandlingDisabledTurn()) return;
-
-            tickStartNanoTime = System.nanoTime();
-
-            var tickEventForBot = gson.fromJson(jsonMsg, TickEventForBot.class);
-
-            var mappedTickEvent = EventMapper.map(tickEventForBot, baseBot);
-            eventQueue.addEventsFromTick(mappedTickEvent);
-
-            if (botIntent.getRescan() != null && botIntent.getRescan()) {
-                botIntent.setRescan(false);
-            }
-
-            tickEvent = mappedTickEvent;
-
-            tickEvent.getEvents().forEach(instantEventHandlers::fireEvent);
-
-            // Trigger next turn (not tick-event!)
-            instantEventHandlers.onNextTurn.publish(tickEvent);
-        }
-
-        private void handleRoundStarted(JsonObject jsonMsg) {
-            var roundStartedEvent = gson.fromJson(jsonMsg, RoundStartedEvent.class);
-
-            var mappedRoundStartedEvent = new RoundStartedEvent(roundStartedEvent.getRoundNumber());
-
-            botEventHandlers.onRoundStarted.publish(mappedRoundStartedEvent);
-            instantEventHandlers.onRoundStarted.publish(mappedRoundStartedEvent);
-        }
-
-        private void handleRoundEnded(JsonObject jsonMsg) {
-            var roundEndedEvent = gson.fromJson(jsonMsg, RoundEndedEvent.class);
-
-            var mappedRoundEndedEvent = new RoundEndedEvent(
-                    roundEndedEvent.getRoundNumber(), roundEndedEvent.getTurnNumber(), roundEndedEvent.getResults());
-
-            botEventHandlers.onRoundEnded.publish(mappedRoundEndedEvent);
-            instantEventHandlers.onRoundEnded.publish(mappedRoundEndedEvent);
-        }
-
-        private void handleGameStarted(JsonObject jsonMsg) {
-            var gameStartedEventForBot = gson.fromJson(jsonMsg, GameStartedEventForBot.class);
-
-            myId = gameStartedEventForBot.getMyId();
-
-            teammateIds = gameStartedEventForBot.getTeammateIds() == null ?
-                    Set.of() : new HashSet<>(gameStartedEventForBot.getTeammateIds());
-
-            gameSetup = GameSetupMapper.map(gameStartedEventForBot.getGameSetup());
-
-            initialPosition = new InitialPosition(
-                    gameStartedEventForBot.getStartX(),
-                    gameStartedEventForBot.getStartY(),
-                    gameStartedEventForBot.getStartDirection());
-
-            // Send ready signal
-            var ready = new BotReady();
-            ready.setType(Message.Type.BOT_READY);
-
-            String msg = gson.toJson(ready);
-            socket.sendText(msg, true);
-
-            botEventHandlers.onGameStarted.publish(
-                    new GameStartedEvent(gameStartedEventForBot.getMyId(), initialPosition, gameSetup));
-        }
-
-        private void handleGameEnded(JsonObject jsonMsg) {
-            // Send the game ended event
-            var gameEndedEventForBot = gson.fromJson(jsonMsg, GameEndedEventForBot.class);
-
-            var mappedGameEnded = new GameEndedEvent(
-                    gameEndedEventForBot.getNumberOfRounds(),
-                    map(gameEndedEventForBot.getResults()));
-
-            botEventHandlers.onGameEnded.publish(mappedGameEnded);
-            instantEventHandlers.onGameEnded.publish(mappedGameEnded);
-        }
-
-        private void handleGameAborted() {
-            botEventHandlers.onGameAborted.publish(null);
-            instantEventHandlers.onGameAborted.publish(null);
-        }
-
-        private void handleSkippedTurn(JsonObject jsonMsg) {
-            if (getEventHandlingDisabledTurn()) return;
-
-            var skippedTurnEvent = gson.fromJson(jsonMsg, dev.robocode.tankroyale.schema.SkippedTurnEvent.class);
-
-            botEventHandlers.onSkippedTurn.publish((SkippedTurnEvent) EventMapper.map(skippedTurnEvent, baseBot));
-        }
-
-        private void handleServerHandshake(JsonObject jsonMsg) {
-            serverHandshake = gson.fromJson(jsonMsg, ServerHandshake.class);
-
-            // Reply by sending bot handshake
-            var isDroid = baseBot instanceof Droid;
-            var botHandshake = BotHandshakeFactory.create(serverHandshake.getSessionId(), botInfo, isDroid, serverSecret);
-            String msg = gson.toJson(botHandshake);
-
-            socket.sendText(msg, true);
-        }
     }
 }

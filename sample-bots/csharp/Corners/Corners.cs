@@ -1,16 +1,16 @@
 using System;
-using System.Drawing;
 using Robocode.TankRoyale.BotApi;
 using Robocode.TankRoyale.BotApi.Events;
+using Robocode.TankRoyale.BotApi.Graphics;
 
 // ------------------------------------------------------------------
 // Corners
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
-// This bot moves to a corner, then swings the gun back and forth.
-// If it dies, it tries a new corner in the next round.
+// This robot moves to a corner, then rotates its gun back and forth
+// scanning for enemies. If it performs poorly in a round, it will
+// try a different corner in the next round.
 // ------------------------------------------------------------------
 public class Corners : Bot
 {
@@ -23,9 +23,6 @@ public class Corners : Bot
     {
         new Corners().Start();
     }
-
-    // Constructor, which loads the bot config file
-    Corners() : base(BotInfo.FromFile("Corners.json")) { }
 
     // Called when a new round is started -> initialize and do some movement
     public override void Run()

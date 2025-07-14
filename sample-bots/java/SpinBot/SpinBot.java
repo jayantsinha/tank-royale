@@ -1,14 +1,14 @@
 import dev.robocode.tankroyale.botapi.*;
 import dev.robocode.tankroyale.botapi.events.*;
-import java.awt.Color;
+import dev.robocode.tankroyale.botapi.graphics.Color;
 
 // ------------------------------------------------------------------
 // SpinBot
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
-// Moves in a circle, firing hard when an enemy is detected.
+// Continuously moves in a circle while firing at maximum power when
+// detecting enemies.
 // ------------------------------------------------------------------
 public class SpinBot extends Bot {
 
@@ -17,18 +17,13 @@ public class SpinBot extends Bot {
         new SpinBot().start();
     }
 
-    // Constructor, which loads the bot config file
-    SpinBot() {
-        super(BotInfo.fromFile("SpinBot.json"));
-    }
-
     // Called when a new round is started -> initialize and do some movement
     @Override
     public void run() {
-        setBodyColor(Color.blue);
-        setTurretColor(Color.blue);
-        setRadarColor(Color.black);
-        setScanColor(Color.yellow);
+        setBodyColor(Color.BLUE);
+        setTurretColor(Color.BLUE);
+        setRadarColor(Color.BLACK);
+        setScanColor(Color.YELLOW);
 
         // Repeat while the bot is running
         while (isRunning()) {

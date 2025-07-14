@@ -1,15 +1,15 @@
 package dev.robocode.tankroyale.server.core
 
-import dev.robocode.tankroyale.server.Server
-import dev.robocode.tankroyale.server.dev.robocode.tankroyale.server.model.InitialPosition
-import dev.robocode.tankroyale.server.dev.robocode.tankroyale.server.model.ParticipantId
-import dev.robocode.tankroyale.server.dev.robocode.tankroyale.server.score.AccumulatedScoreCalculator
-import dev.robocode.tankroyale.server.dev.robocode.tankroyale.server.score.ScoreCalculator
+import dev.robocode.tankroyale.server.model.InitialPosition
+import dev.robocode.tankroyale.server.model.ParticipantId
+import dev.robocode.tankroyale.server.score.AccumulatedScoreCalculator
+import dev.robocode.tankroyale.server.score.ScoreCalculator
 import dev.robocode.tankroyale.server.event.*
 import dev.robocode.tankroyale.server.model.*
 import dev.robocode.tankroyale.server.model.Color.Companion.from
 import dev.robocode.tankroyale.server.rules.*
 import dev.robocode.tankroyale.server.score.ScoreTracker
+import dev.robocode.tankroyale.server.Server
 import java.lang.Math.toDegrees
 import java.util.*
 import kotlin.math.abs
@@ -775,16 +775,6 @@ class ModelUpdater(
      */
     private fun handleScannedBot(scanningBot: MutableBot, botBeingScanned: IBot) {
         createAndAddScannedBotEventToTurn(scanningBot.id, botBeingScanned)
-
-        if (isRescanning(scanningBot.id)) {
-            botsCopies[scanningBot.id]?.let {
-                scanningBot.x = it.x
-                scanningBot.y = it.y
-                scanningBot.direction = it.direction
-                scanningBot.gunDirection = it.gunDirection
-                scanningBot.radarDirection = it.radarDirection
-            }
-        }
     }
 
     /**
@@ -869,15 +859,24 @@ class ModelUpdater(
      */
     private fun getScanAngles(bot: IBot): Pair<Double, Double> {
         val spreadAngle = bot.radarSpreadAngle
-        val startAngle: Double
-        val endAngle: Double
-        if (spreadAngle > 0) {
-            endAngle = bot.radarDirection
-            startAngle = normalizeAbsoluteDegrees(endAngle - spreadAngle)
+        val absSpreadAngle = abs(spreadAngle)
+
+        // Always use the radar direction as the reference point
+        val radarDirection = bot.radarDirection
+
+        // Calculate start and end based on the sign of the spread angle
+        val (startAngle, endAngle) = if (spreadAngle >= 0) {
+            Pair(
+                normalizeAbsoluteDegrees(radarDirection - absSpreadAngle),
+                radarDirection
+            )
         } else {
-            startAngle = bot.radarDirection
-            endAngle = normalizeAbsoluteDegrees(startAngle - spreadAngle)
+            Pair(
+                radarDirection,
+                normalizeAbsoluteDegrees(radarDirection + absSpreadAngle)
+            )
         }
+
         return Pair(startAngle, endAngle)
     }
 

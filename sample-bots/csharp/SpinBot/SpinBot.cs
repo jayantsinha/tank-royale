@@ -1,7 +1,7 @@
 using Robocode.TankRoyale.BotApi;
 using Robocode.TankRoyale.BotApi.Events;
+using Robocode.TankRoyale.BotApi.Graphics;
 
-using System.Drawing;
 using System.IO;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
@@ -10,30 +10,17 @@ using Microsoft.Extensions.Configuration.Json;
 // SpinBot
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
-// Moves in a circle, firing hard when an enemy is detected.
+// Continuously moves in a circle while firing at maximum power when
+// detecting enemies.
 // ------------------------------------------------------------------
 public class SpinBot : Bot
 {
     // The main method starts our bot
     static void Main(string[] args)
     {
-        // Read configuration file from current directory
-        var builder = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("SpinBot.json");
-
-        // Read the configuration into a BotInfo instance
-        var config = builder.Build();
-        var botInfo = BotInfo.FromConfiguration(config);
-
-        // Create and start our bot based on the bot info
-        new SpinBot(botInfo).Start();
+        new SpinBot().Start();
     }
-
-    // Constructor taking a BotInfo that is forwarded to the base class
-    private SpinBot(BotInfo botInfo) : base(botInfo) {}
 
     // Called when a new round is started -> initialize and do some movement
     public override void Run()

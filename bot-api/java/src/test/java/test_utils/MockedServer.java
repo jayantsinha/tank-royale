@@ -1,6 +1,6 @@
 package test_utils;
 
-import com.google.gson.Gson;
+import dev.robocode.tankroyale.botapi.internal.json.JsonConverter;
 import dev.robocode.tankroyale.schema.*;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
@@ -18,7 +18,7 @@ import static dev.robocode.tankroyale.schema.Message.Type.*;
 
 public final class MockedServer {
 
-    public static final int PORT = 7913;
+    public static final int PORT = findAvailablePort();
     public static final String SERVER_URL = "ws://localhost:" + PORT;
 
     public static final String SESSION_ID = "123abc";
@@ -81,8 +81,6 @@ public final class MockedServer {
     private final CountDownLatch botIntentLatch = new CountDownLatch(1);
 
     private CountDownLatch botIntentContinueLatch = new CountDownLatch(1);
-
-    private final Gson gson = new Gson();
 
     private BotHandshake botHandshake;
     private BotIntent botIntent;
@@ -219,10 +217,19 @@ public final class MockedServer {
         return botHandshake;
     }
 
+    private static int findAvailablePort() {
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (java.io.IOException e) {
+            return 7913; // fallback to default port
+        }
+    }
+
     private class WebSocketServerImpl extends WebSocketServer {
 
         public WebSocketServerImpl() {
             super(new InetSocketAddress(PORT));
+            setReuseAddr(true);
         }
 
         @Override
@@ -241,12 +248,12 @@ public final class MockedServer {
 
         @Override
         public void onMessage(WebSocket conn, String text) {
-            var message = gson.fromJson(text, Message.class);
+            var message = JsonConverter.fromJson(text, Message.class);
             switch (message.getType()) {
                 case BOT_HANDSHAKE:
                     System.out.println("BOT_HANDSHAKE");
 
-                    botHandshake = gson.fromJson(text, BotHandshake.class);
+                    botHandshake = JsonConverter.fromJson(text, BotHandshake.class);
                     botHandshakeLatch.countDown();
 
                     sendGameStartedForBot(conn);
@@ -284,7 +291,7 @@ public final class MockedServer {
                     }
                     botIntentContinueLatch = new CountDownLatch(1);
 
-                    botIntent = gson.fromJson(text, BotIntent.class);
+                    botIntent = JsonConverter.fromJson(text, BotIntent.class);
                     botIntentLatch.countDown();
 
                     sendTickEventForBot(conn, turnNumber++);
@@ -400,7 +407,7 @@ public final class MockedServer {
         }
 
         private void send(WebSocket conn, Message message) {
-            conn.send(gson.toJson(message));
+            conn.send(JsonConverter.toJson(message));
         }
 
         private BulletState createBulletState(int id) {

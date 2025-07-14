@@ -1,16 +1,15 @@
 using System;
-using System.Drawing;
 using Robocode.TankRoyale.BotApi;
 using Robocode.TankRoyale.BotApi.Events;
+using Robocode.TankRoyale.BotApi.Graphics;
 
 // ------------------------------------------------------------------
 // Target
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
-// Sits still. Moves every time energy drops by 20.
-// This bot demonstrates custom events.
+// A stationary robot that moves when its energy drops below a certain
+// threshold. This robot demonstrates how to use custom events.
 // ------------------------------------------------------------------
 public class Target : Bot
 {
@@ -21,9 +20,6 @@ public class Target : Bot
     {
         new Target().Start();
     }
-
-    // Constructor, which loads the bot config file
-    Target() : base(BotInfo.FromFile("Target.json")) { }
 
     // Called when a new round is started -> initialize and do some movement
     public override void Run()

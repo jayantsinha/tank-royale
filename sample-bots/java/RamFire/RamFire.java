@@ -1,14 +1,14 @@
 import dev.robocode.tankroyale.botapi.*;
 import dev.robocode.tankroyale.botapi.events.*;
-import java.awt.Color;
+import dev.robocode.tankroyale.botapi.graphics.Color;
 
 // ------------------------------------------------------------------
 // RamFire
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
-// Drives at bots trying to ram them. Fires when it hits them.
+// This robot actively seeks out opponents, rams into them, and fires
+// with appropriate power based on the enemy's remaining energy.
 // ------------------------------------------------------------------
 public class RamFire extends Bot {
 
@@ -19,18 +19,13 @@ public class RamFire extends Bot {
         new RamFire().start();
     }
 
-    // Constructor, which loads the bot config file
-    RamFire() {
-        super(BotInfo.fromFile("RamFire.json"));
-    }
-
     // Called when a new round is started -> initialize and do some movement
     @Override
     public void run() {
         // Set colors
-        setBodyColor(new Color(0x99, 0x99, 0x99));   // lighter gray
-        setTurretColor(new Color(0x88, 0x88, 0x88)); // gray
-        setRadarColor(new Color(0x66, 0x66, 0x66));  // dark gray
+        setBodyColor(Color.fromRgb(0x99, 0x99, 0x99));   // lighter gray
+        setTurretColor(Color.fromRgb(0x88, 0x88, 0x88)); // gray
+        setRadarColor(Color.fromRgb(0x66, 0x66, 0x66));  // dark gray
 
         while (isRunning()) {
             turnRight(5 * turnDirection);
@@ -78,6 +73,6 @@ public class RamFire extends Bot {
         } else {
             turnDirection = -1;
         }
-        turnRight(bearing);
+        turnLeft(bearing);
     }
 }

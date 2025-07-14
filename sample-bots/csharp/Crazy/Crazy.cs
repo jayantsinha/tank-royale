@@ -1,14 +1,13 @@
-using System.Drawing;
 using Robocode.TankRoyale.BotApi;
 using Robocode.TankRoyale.BotApi.Events;
+using Robocode.TankRoyale.BotApi.Graphics;
 
 // ------------------------------------------------------------------
 // Crazy
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
-// This bot moves around in a crazy pattern.
+// This robot moves in a zigzag pattern while firing at enemies.
 // ------------------------------------------------------------------
 public class Crazy : Bot
 {
@@ -20,17 +19,14 @@ public class Crazy : Bot
         new Crazy().Start();
     }
 
-    // Constructor, which loads the bot config file
-    Crazy() : base(BotInfo.FromFile("Crazy.json")) { }
-
     // Called when a new round is started -> initialize and do some movement
     public override void Run()
     {
-        BodyColor = Color.FromArgb(0x00, 0xC8, 0x00);   // lime
-        TurretColor = Color.FromArgb(0x00, 0x96, 0x32); // green
-        RadarColor = Color.FromArgb(0x00, 0x64, 0x64);  // dark cyan
-        BulletColor = Color.FromArgb(0xFF, 0xFF, 0x64); // yellow
-        ScanColor = Color.FromArgb(0xFF, 0xC8, 0xC8);   // light red
+        BodyColor = Color.FromRgb(0x00, 0xC8, 0x00);   // lime
+        TurretColor = Color.FromRgb(0x00, 0x96, 0x32); // green
+        RadarColor = Color.FromRgb(0x00, 0x64, 0x64);  // dark cyan
+        BulletColor = Color.FromRgb(0xFF, 0xFF, 0x64); // yellow
+        ScanColor = Color.FromRgb(0xFF, 0xC8, 0xC8);   // light red
 
         movingForward = true;
 

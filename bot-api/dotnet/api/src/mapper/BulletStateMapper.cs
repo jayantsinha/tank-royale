@@ -3,9 +3,9 @@ using Robocode.TankRoyale.BotApi.Util;
 
 namespace Robocode.TankRoyale.BotApi.Mapper;
 
-internal static class BulletStateMapper
+static class BulletStateMapper
 {
-    public static BulletState Map(Schema.BulletState source)
+    internal static BulletState Map(Schema.BulletState source)
     {
         return new BulletState(
             source.BulletId,
@@ -14,11 +14,11 @@ internal static class BulletStateMapper
             source.X,
             source.Y,
             source.Direction,
-            ColorUtil.FromString(source.Color)
+            ColorUtil.FromHexColor(source.Color)
         );
     }
 
-    public static IEnumerable<BulletState> Map(IEnumerable<Schema.BulletState> source)
+    internal static IEnumerable<BulletState> Map(IEnumerable<Schema.BulletState> source)
     {
         var bulletStates = new HashSet<BulletState>();
         foreach (var bulletState in source)

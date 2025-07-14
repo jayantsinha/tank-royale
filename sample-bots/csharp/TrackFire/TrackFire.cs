@@ -1,15 +1,15 @@
 using System;
-using System.Drawing;
 using Robocode.TankRoyale.BotApi;
 using Robocode.TankRoyale.BotApi.Events;
+using Robocode.TankRoyale.BotApi.Graphics;
 
 // ------------------------------------------------------------------
 // TrackFire
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
-// Sits still. Tracks and fires at the nearest bot it sees.
+// Sits still while tracking and firing at the nearest robot it
+// detects.
 // ------------------------------------------------------------------
 public class TrackFire : Bot
 {
@@ -19,14 +19,11 @@ public class TrackFire : Bot
         new TrackFire().Start();
     }
 
-    // Constructor, which loads the bot config file
-    TrackFire() : base(BotInfo.FromFile("TrackFire.json")) { }
-
     // Called when a new round is started -> initialize and do some movement
     public override void Run()
     {
         // Set colors
-        var pink = Color.FromArgb(0xFF, 0x69, 0xB4);
+        var pink = Color.FromRgb(0xFF, 0x69, 0xB4);
         BodyColor = pink;
         TurretColor = pink;
         RadarColor = pink;
@@ -47,7 +44,7 @@ public class TrackFire : Bot
         var bearingFromGun = GunBearingTo(e.X, e.Y);
 
         // Turn the gun toward the scanned bot
-        TurnGunRight(bearingFromGun);
+        TurnGunLeft(bearingFromGun);
 
         // If it is close enough, fire!
         if (Math.Abs(bearingFromGun) <= 3 && GunHeat == 0)

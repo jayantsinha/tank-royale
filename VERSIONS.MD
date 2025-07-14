@@ -1,11 +1,109 @@
-## 📦 0.30.2
+## 📦 0.32.1 - No need of default constructor - 01-Jul-2025
+
+### 🚀 Improvements
+
+- Bot API:
+    - The `BaseBot()` constructor (instead of `Bot()` constructor) now automatically searches for the bot config file (
+      .json) and falls back on using environment variables if the config file could not be found.
+    - The sample bots could not start up due to this issue.
 
 ### 🐞 Bug Fixes
 
+- Booter
+    - Fixed the escaping issue with double backslash characters.
+- Sample Bot:
+    - Fixed a bug in TrackFire.cs where the turret misaligned while attempting to lock onto a target, causing it to
+      oscillate erratically during target acquisition.
+
+## 📦 0.32.0 - Added Booter Error Log - 24-Jun-2025
+
+This version makes it easier to figure out why a bot will not boot from a bot directory.
+
+### 🚀 Improvements
+
+- Booter:
+    - The Booter now logs errors to standard error. Each error is recorded with the name of the bot directory in which
+      the error occurred.
+
+- GUI:
+    - When booting one or more bots that crash with an error, the error is written to a Booter Error Log window. This
+      window automatically appears and displays the detected errors for each bot directory that caused an error.
+
+- Bot API:
+    - The `Bot()` constructor now automatically searches for the bot config file (.json) and falls back on using
+      environment variables if the config file could not be found.
+        - Due to this change, the default constructor has been removed from all sample bots.
+
+## 📦 0.31.0 - Improved Graphical Debugging - 19-Jun-2025
+
+### ⚠️ Breaking Changes
+
+#### Bot API Updates
+
+If you are using `Color` and the `getGraphics()` method or `Graphics` property, you may need to update your bot(s).
+
+**Changes Implemented:**
+
+- Platform-specific graphics classes and external graphics libraries, such as those for SVG, have been replaced with the
+  following classes:
+    - `IGraphics`
+    - `SvgGraphics`
+    - `Color`
+    - `Point`
+
+**Reasons for Changes:**
+
+- Simplify the development and maintenance of the debugging graphics feature.
+- Avoid using platform-specific features and frameworks that are not compatible across all platforms and operating
+  systems.
+- Enhance the speed of SVG serialization, reduce RAM usage, and decrease distribution archive sizes.
+- Standardize the API for debug painting across all Bot APIs (Java, .Net, Python, etc.).
+
+**Specific Updates:**
+
+- **Java:** A new package `dev.robocode.tankroyale.botapi.graphics` has been introduced.
+- **.Net:** A new namespace `Robocode.TankRoyale.BotApi.Graphics` has been introduced.
+
+**Additional Information:**
+
+- Sample bots have been updated to use the new classes.
+
+### 🐞 Bug Fixes
+
+- BotAPI:
+    - #143: .NET bot fails to start with no or invalid country code.
+    - #144: .NET bots run only on Windows since 0.30.0.
+        - SvgNet requires `System.Drawing`, which is not available on Linux and macOS. Hence, the new Robocode specific
+          `IGraphics` interface must be used instead.
+    - Fixed the generated bot Bash scripts for .Net so `dotnet build` will be called if the `bin` folder is missing.
+- GUI:
+    - Fixed multiple issues with the "No bot directory root has been configured" error dialog.
+
+## 📦 0.30.2 - GUI auto-scales the Battle View - 02-Jun-2025
+
+### 🚀 Improvements
+
+- GUI:
+    - The GUI now automatically scales the battle view when it’s first displayed and adjusts it dynamically as the
+      window is resized.
+      screen only. This is helpful when running on systems with multiple screens.
+        - Thanks to [Jan Durovec](https://github.com/jandurovec) for this nice improvement. ❤️
+    - Windows now open on the "active" screen where the mouse cursor is located instead of showing up on the primary.
+    - Fixed an issue where Robocode could get stuck showing a black window.
+
+### 🐞 Bug Fixes
+
+- Server:
+    - #132: Fixed several race conditions and synchronization issues on the server side.
 - BotAPI / Sample Bots:
     - Fixed issue where the Fire sample bot did not lock the radar on its target.
 - Sample Bots:
-    - The Fire sample bot did not turn perpendicular to the bullet direction.
+    - The `Fire` and `MyFirstBot` sample bot did not turn perpendicular to the bullet direction anymore, and the RamFire
+      did not drive directly towards its target.
+- Documentation:
+    - #136: The turn timeout and ready timeout were incorrectly specified in ~~milliseconds~~ instead of **microseconds
+      **.
+      1 millisecond = 1/1,000 of a second, where 1 microsecond = 1/1,000,000 of a second
 
 ## 📦 0.30.1 - Fixes to sample bots - 08-Mar-2025
 
@@ -64,7 +162,7 @@ A new sample bot, PaintingBot, has been introduced to showcase the use of debug 
 
 - Server:
     - Log messages printed out `{}` instead of content.
-- UI:
+- GUI:
     - Fixed issue with the switch button in the Server Options for switching between using a local and remote server.
 
 ## 📦 0.29.0 - All about colors - 19-Jan-2024
@@ -169,7 +267,7 @@ This version fixes various issues, some found when running legacy bots with the 
 
 ### 🐞 Bug Fixes
 
-- GUI
+- GUI:
     - Control Panel was shown when server was stopped or rebooted.
 
 ## 📦 0.25.0 - Fix for Ranks and Event Queue improvements - 11-Oct-2024

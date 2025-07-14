@@ -43,7 +43,7 @@ tasks {
             when (fileExt) {
                 "sh" -> {
                     it.println("""#!/bin/sh
-if [ -d "bin" ]; then
+if [ ! -d "bin" ]; then
   dotnet build
 fi
 dotnet run --no-build
@@ -98,8 +98,8 @@ dotnet run --no-build >nul
     val zip by registering(Zip::class) {
         dependsOn(build)
 
-        archiveFileName.set(archiveFilename)
-        destinationDirectory.set(layout.buildDirectory)
+        archiveFileName = archiveFilename
+        destinationDirectory = layout.buildDirectory
         filePermissions {
             user {
                 read = true

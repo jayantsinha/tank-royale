@@ -1,15 +1,15 @@
 package dev.robocode.tankroyale.gui.ui.newbattle
 
+import dev.robocode.tankroyale.client.model.BotInfo
+import dev.robocode.tankroyale.common.Event
 import dev.robocode.tankroyale.gui.booter.BootProcess
 import dev.robocode.tankroyale.gui.booter.DirAndPid
 import dev.robocode.tankroyale.gui.client.Client
 import dev.robocode.tankroyale.gui.client.ClientEvents
-import dev.robocode.tankroyale.gui.model.BotInfo
 import dev.robocode.tankroyale.gui.settings.ConfigSettings
 import dev.robocode.tankroyale.gui.ui.Hints
 import dev.robocode.tankroyale.gui.ui.Messages
 import dev.robocode.tankroyale.gui.ui.Strings
-import dev.robocode.tankroyale.gui.ui.UiTitles
 import dev.robocode.tankroyale.gui.ui.components.SortedListModel
 import dev.robocode.tankroyale.gui.ui.config.BotRootDirectoriesConfigDialog
 import dev.robocode.tankroyale.gui.ui.extensions.JComponentExt.addButton
@@ -19,7 +19,6 @@ import dev.robocode.tankroyale.gui.ui.extensions.JListExt.onChanged
 import dev.robocode.tankroyale.gui.ui.extensions.JListExt.onMultiClickedAtIndex
 import dev.robocode.tankroyale.gui.ui.extensions.JListExt.onSelection
 import dev.robocode.tankroyale.gui.ui.server.ServerEvents
-import dev.robocode.tankroyale.gui.util.Event
 import dev.robocode.tankroyale.gui.util.EDT.enqueue
 import net.miginfocom.swing.MigLayout
 import java.awt.EventQueue
@@ -382,12 +381,7 @@ object BotSelectionPanel : JPanel(MigLayout("insets 0", "[sg,grow][center][sg,gr
         }
 
         if (BootProcess.botDirs.isEmpty()) {
-            JOptionPane.showMessageDialog(
-                null,
-                Messages.get("no_bot_directories_found"),
-                UiTitles.get("error"),
-                JOptionPane.ERROR_MESSAGE
-            )
+            showNoNotDirectoriesFoundErrorAndShowBotRootDirectoriesConfig()
             return
         }
 
@@ -418,13 +412,21 @@ object BotSelectionPanel : JPanel(MigLayout("insets 0", "[sg,grow][center][sg,gr
 
     private fun enforceBotDirIsConfigured() {
         if (ConfigSettings.botDirectories.isEmpty()) {
-            EventQueue.invokeLater {
-                with(BotRootDirectoriesConfigDialog) {
-                    if (!isVisible) {
-                        showError(Messages.get("no_bot_directories_found"))
-                        isVisible = true
-                    }
-                }
+            showNoNotDirectoriesFoundErrorAndShowBotRootDirectoriesConfig()
+        }
+    }
+
+    var isShowingNoNotDirectoriesFoundError = false
+
+    private fun showNoNotDirectoriesFoundErrorAndShowBotRootDirectoriesConfig() {
+        EventQueue.invokeLater {
+            if (!isShowingNoNotDirectoriesFoundError) {
+                isShowingNoNotDirectoriesFoundError = true
+
+                showError(Messages.get("no_bot_directories_found"))
+                BotRootDirectoriesConfigDialog.isVisible = true
+
+                isShowingNoNotDirectoriesFoundError = false
             }
         }
     }

@@ -2,11 +2,18 @@ rootProject.name = "robocode-tank-royale"
 
 val version: String = providers.gradleProperty("version").get()
 
+// Lib
+include("lib:common")
+include("lib:client")
+
 // Booter
 include("booter")
 
 // Server
 include("server")
+
+// Recorder
+include("recorder")
 
 // GUI app
 include("gui-app")
@@ -27,7 +34,7 @@ include("sample-bots:csharp")
 // Docs
 include("buildDocs")
 
-// Check dependencies with this command:  gradlew dependencyUpdates -Drevision=release
+// Check dependencies with this command: gradlew dependencyUpdates
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {

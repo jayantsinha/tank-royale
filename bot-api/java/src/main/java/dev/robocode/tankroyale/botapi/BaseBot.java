@@ -2,12 +2,12 @@ package dev.robocode.tankroyale.botapi;
 
 import dev.robocode.tankroyale.botapi.events.BotEvent;
 import dev.robocode.tankroyale.botapi.events.Condition;
+import dev.robocode.tankroyale.botapi.graphics.Color;
+import dev.robocode.tankroyale.botapi.graphics.IGraphics;
 import dev.robocode.tankroyale.botapi.internal.BaseBotInternals;
 import dev.robocode.tankroyale.botapi.internal.EventPriorities;
 import dev.robocode.tankroyale.schema.BotIntent;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
@@ -17,7 +17,7 @@ import static dev.robocode.tankroyale.botapi.Constants.*;
 import static dev.robocode.tankroyale.botapi.util.MathUtil.clamp;
 
 /**
- * Abstract bot class that takes care of communication between the bot and the server, and sends
+ * Abstract bot class that takes care of communication between the bot and the server and sends
  * notifications through the event handlers. Most bots can inherit from this class to get access to
  * basic methods.
  */
@@ -27,10 +27,17 @@ public abstract class BaseBot implements IBaseBot {
 
     /**
      * Constructor for initializing a new instance of the BaseBot class.
-     * This constructor should be used when both {@link BotInfo} and server URL is provided through
-     * environment variables, i.e., when starting up the bot using a booter. These environment
-     * variables must be set to provide the server URL and bot information, and are automatically
-     * set by the booter tool for Robocode.
+     * This constructor automatically looks for a config file and falls back to environment variables
+     * if the config file is not found or is incomplete.
+     * <p>
+     * The config file is searched in the following locations:
+     * <ol>
+     * <li>The current directory of the application</li>
+     * <li>The user's home directory</li>
+     * </ol>
+     * <p>
+     * When using environment variables (either as fallback or primary configuration), these must be set
+     * to provide the server URL and bot information and are automatically set by the booter tool for Robocode.
      * <p><br>
      * Example of how to set the predefined environment variables used for connecting to the server:
      * <ul>
@@ -52,14 +59,14 @@ public abstract class BaseBot implements IBaseBot {
      * <li>{@code BOT_INITIAL_POS=50,70, 270}</li>
      * </ul>
      * <p>
-     * These environment variables <em>must</em> be set prior to using this constructor:
+     * These environment variables <em>must</em> be set before using this constructor:
      * <ul>
      * <li>{@code BOT_NAME}</li>
      * <li>{@code BOT_VERSION}</li>
      * <li>{@code BOT_AUTHORS}</li>
      * </ul>
      * <p>
-     * These value can take multiple values separated by a comma:
+     * These values can take multiple values separated by a comma:
      * <ul>
      * <li>{@code BOT_AUTHORS, e.g. "John Doe, Jane Doe"}</li>
      * <li>{@code BOT_COUNTRY_CODES, e.g. "se, no, dk"}</li>
@@ -75,12 +82,18 @@ public abstract class BaseBot implements IBaseBot {
      * If the {@code SERVER_URL} is not set, then this default URL is used: ws://localhost:7654
      */
     protected BaseBot() {
-        baseBotInternals = new BaseBotInternals(this, null, null, null);
+        // try to automatically read the bot config file
+        BotInfo botInfo = null;
+        try {
+            botInfo = BotInfo.fromFile(getClass().getSimpleName() + ".json");
+        } catch (BotException ignore) {
+        }
+        baseBotInternals = new BaseBotInternals(this, botInfo, null, null);
     }
 
     /**
      * Constructor for initializing a new instance of the BaseBot class.
-     * This constructor assumes the server URL and secret is provided by the environment
+     * This constructor assumes the server URL and secret are provided by the environment
      * variables SERVER_URL and SERVER_SECRET.
      *
      * @param botInfo is the bot info containing information about your bot.
@@ -124,6 +137,13 @@ public abstract class BaseBot implements IBaseBot {
     // We allow override of go() here to let the Robocode Bridge hook into this method
     @Override
     public void go() {
+        // Process all events before executing the turn commands to mimic classic Robocode behavior where
+        // events are handled before the next turn's execution from the run() method.
+        var currentTick = baseBotInternals.getCurrentTickOrNull();
+        if (currentTick != null) {
+            baseBotInternals.dispatchEvents(currentTick.getTurnNumber());
+        }
+
         baseBotInternals.execute();
     }
 
@@ -822,7 +842,7 @@ public abstract class BaseBot implements IBaseBot {
      * {@inheritDoc}
      */
     @Override
-    public final Graphics2D getGraphics() {
+    public final IGraphics getGraphics() {
         return baseBotInternals.getGraphics();
     }
 }

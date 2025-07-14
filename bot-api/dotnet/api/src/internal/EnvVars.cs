@@ -12,7 +12,7 @@ namespace Robocode.TankRoyale.BotApi.Internal;
 /// <summary>
 /// Utility class for reading environment variables.
 /// </summary>
-internal static class EnvVars
+static class EnvVars
 {
     /// <summary>Name of environment variable for server URL.</summary>
     private const string ServerUrl = "SERVER_URL";
@@ -239,7 +239,7 @@ internal static class EnvVars
     /// Checks if bot is being booted.
     /// </summary>
     /// <returns><c>true</c> if the bot is being booted; <c>false</c> otherwise.</returns>
-    internal static bool IsBotBooted()
+    internal static bool IsBotBooted() // Set by Booter. Currently, not being used
     {
         return Environment.GetEnvironmentVariable(BotBooted) != null;
     }

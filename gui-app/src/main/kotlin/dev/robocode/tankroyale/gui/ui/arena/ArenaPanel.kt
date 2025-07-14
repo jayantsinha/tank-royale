@@ -1,8 +1,8 @@
 package dev.robocode.tankroyale.gui.ui.arena
 
+import dev.robocode.tankroyale.client.model.*
 import dev.robocode.tankroyale.gui.client.Client
 import dev.robocode.tankroyale.gui.client.ClientEvents
-import dev.robocode.tankroyale.gui.model.*
 import dev.robocode.tankroyale.gui.ui.ResultsFrame
 import dev.robocode.tankroyale.gui.ui.extensions.ColorExt.hsl
 import dev.robocode.tankroyale.gui.ui.extensions.ColorExt.lightness
@@ -14,10 +14,7 @@ import dev.robocode.tankroyale.gui.util.ColorUtil.Companion.fromString
 import dev.robocode.tankroyale.gui.util.Graphics2DState
 import dev.robocode.tankroyale.gui.util.HslColor
 import java.awt.*
-import java.awt.event.MouseAdapter
-import java.awt.event.MouseEvent
-import java.awt.event.MouseMotionAdapter
-import java.awt.event.MouseWheelEvent
+import java.awt.event.*
 import java.awt.geom.AffineTransform
 import java.awt.geom.Arc2D
 import java.awt.geom.Area
@@ -58,6 +55,12 @@ object ArenaPanel : JPanel() {
         addMouseMotionListener(object : MouseMotionAdapter() {
             override fun mouseDragged(e: MouseEvent) {
                 onMouseDragged(e)
+            }
+        })
+
+        addComponentListener(object : ComponentAdapter() {
+            override fun componentResized(e: ComponentEvent) {
+                recalcScale()
             }
         })
 
@@ -111,21 +114,7 @@ object ArenaPanel : JPanel() {
             ArenaPanel.arenaHeight = arenaHeight
         }
 
-        val parent = ArenaPanel.parent
-
-        val arenaWidth = arenaWidth
-        val arenaHeight = arenaHeight
-        val parentWidth = parent.width.toDouble()
-        val parentHeight = parent.height.toDouble()
-
-        scale = if (parentWidth == 0.0 || parentHeight == 0.0) {
-            1.0
-        } else if (arenaWidth > parentWidth || arenaHeight > parentHeight) {
-            minOf(parentWidth / arenaWidth, parentHeight / arenaHeight) * 0.8
-        } else {
-            1.0
-        }
-
+        recalcScale()
         repaint()
     }
 
@@ -250,6 +239,23 @@ object ArenaPanel : JPanel() {
 
     private fun drawBullets(g: Graphics2D) {
         bullets.forEach { drawBullet(g, it) }
+    }
+
+    private fun recalcScale() {
+        /*
+         * Add 30px to height in both directions so that energy/name labels are (at least partially)
+         * visible even if bot is at the edge of the arena.
+         */
+        val arenaPadding = 60
+        val viewWidth = ArenaPanel.width.toDouble()
+        val viewHeight = ArenaPanel.height.toDouble()
+
+        scale = if (viewWidth == 0.0 || viewHeight == 0.0) {
+            1.0
+        } else {
+            minOf(viewWidth / arenaWidth, viewHeight / (arenaHeight + arenaPadding))
+        }
+
     }
 
     private fun clearCanvas(g: Graphics) {

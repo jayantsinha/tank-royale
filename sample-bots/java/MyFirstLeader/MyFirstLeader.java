@@ -1,12 +1,11 @@
 import dev.robocode.tankroyale.botapi.*;
 import dev.robocode.tankroyale.botapi.events.*;
-import java.awt.Color;
+import dev.robocode.tankroyale.botapi.graphics.Color;
 
 // ------------------------------------------------------------------
 // MyFirstLeader
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
 // Member of the MyFirstTeam. Looks around for enemies, and orders
 // teammates to fire.
@@ -18,24 +17,19 @@ public class MyFirstLeader extends Bot {
         new MyFirstLeader().start();
     }
 
-    // Constructor, which loads the bot config file
-    MyFirstLeader() {
-        super(BotInfo.fromFile("MyFirstLeader.json"));
-    }
-
     // Called when a new round is started -> Leader's default behavior
     @Override
     public void run() {
         // Prepare robot colors to send to teammates
         var colors = new RobotColors();
 
-        colors.bodyColor = Color.red;
-        colors.tracksColor = Color.cyan;
-        colors.turretColor = Color.red;
-        colors.gunColor = Color.yellow;
-        colors.radarColor = Color.red;
-        colors.scanColor = Color.yellow;
-        colors.bulletColor = Color.yellow;
+        colors.bodyColor = Color.RED;
+        colors.tracksColor = Color.CYAN;
+        colors.turretColor = Color.RED;
+        colors.gunColor = Color.YELLOW;
+        colors.radarColor = Color.RED;
+        colors.scanColor = Color.YELLOW;
+        colors.bulletColor = Color.YELLOW;
 
         // Set the color of this robot containing the robot colors
         setBodyColor(colors.bodyColor);

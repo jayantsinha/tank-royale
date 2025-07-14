@@ -2,9 +2,9 @@ using static Robocode.TankRoyale.BotApi.Util.ColorUtil;
 
 namespace Robocode.TankRoyale.BotApi.Mapper;
 
-internal static class BotStateMapper
+static class BotStateMapper
 {
-    public static BotState Map(Schema.BotState source)
+    internal static BotState Map(Schema.BotState source)
     {
         return new BotState(
             source.IsDroid == false,
@@ -21,13 +21,13 @@ internal static class BotStateMapper
             source.RadarTurnRate,
             source.GunHeat,
             source.EnemyCount,
-            FromString(source.BodyColor),
-            FromString(source.TurretColor),
-            FromString(source.RadarColor),
-            FromString(source.BulletColor),
-            FromString(source.ScanColor),
-            FromString(source.TracksColor),
-            FromString(source.GunColor),
+            FromHexColor(source.BodyColor),
+            FromHexColor(source.TurretColor),
+            FromHexColor(source.RadarColor),
+            FromHexColor(source.BulletColor),
+            FromHexColor(source.ScanColor),
+            FromHexColor(source.TracksColor),
+            FromHexColor(source.GunColor),
             source.IsDebuggingEnabled == true
         );
     }

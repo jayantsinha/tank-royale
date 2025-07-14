@@ -5,10 +5,9 @@ using Robocode.TankRoyale.BotApi.Events;
 // MyFirstBot
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
 // Probably the first bot you will learn about.
-// Moves in a seesaw motion, and spins the gun around at each end.
+// Moves in a seesaw motion and spins the gun around at each end.
 // ------------------------------------------------------------------
 public class MyFirstBot : Bot
 {
@@ -17,9 +16,6 @@ public class MyFirstBot : Bot
     {
         new MyFirstBot().Start();
     }
-
-    // Constructor, which loads the bot config file
-    MyFirstBot() : base(BotInfo.FromFile("MyFirstBot.json")) { }
 
     // Called when a new round is started -> initialize and do some movement
     public override void Run()
@@ -47,6 +43,6 @@ public class MyFirstBot : Bot
         var bearing = CalcBearing(evt.Bullet.Direction);
 
         // Turn 90 degrees to the bullet direction based on the bearing
-        TurnLeft(90 - bearing);
+        TurnRight(90 - bearing);
     }
 }

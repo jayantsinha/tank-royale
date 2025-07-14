@@ -1,5 +1,4 @@
 import java.nio.file.Files
-import java.util.Collections.singletonList
 import org.jsonschema2pojo.AnnotationStyle
 import org.jsonschema2pojo.SourceType
 
@@ -18,7 +17,7 @@ base {
 plugins {
     `java-library`
     alias(libs.plugins.jsonschema2pojo)
-    alias(libs.plugins.shadow.jar)
+    alias(libs.plugins.shadow)
     `maven-publish`
     signing
 }
@@ -27,32 +26,35 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.gson.extras)
     implementation(libs.nv.i18n)
-    implementation(libs.batik.svggen)
-    implementation(libs.batik.dom)
 
-    testImplementation(testLibs.junit.api)
-    testImplementation(testLibs.junit.params)
-    testImplementation(testLibs.junit.engine)
+    testImplementation(testLibs.bundles.junit)
     testImplementation(testLibs.assertj)
     testImplementation(testLibs.system.stubs)
     testImplementation(libs.java.websocket) // for mocked server
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
 
     withJavadocJar()
     withSourcesJar()
 }
 
 jsonSchema2Pojo {
-    setSourceType(SourceType.YAMLSCHEMA.toString())
-    setSource(singletonList(layout.projectDirectory.dir("../../schema/schemas").asFile))
-    setAnnotationStyle(AnnotationStyle.GSON.toString())
+    val schemaDir = layout.projectDirectory.dir("../../schema/schemas").asFile
+    if (!schemaDir.exists() || !schemaDir.isDirectory) {
+        throw GradleException("Schema directory '${schemaDir.absolutePath}' does not exist or is not a directory.")
+    }
+
+    setSource(listOf(schemaDir))
+    setSourceType(SourceType.YAMLSCHEMA.name)
+    setAnnotationStyle(AnnotationStyle.GSON.name)
+    setFileExtensions("schema.yaml", "schema.json")
+
     targetPackage = schemaPackage
     targetDirectory = layout.buildDirectory.dir("generated-sources/schema").get().asFile
-    setFileExtensions("schema.yaml", "schema.json")
 }
 
 sourceSets {
@@ -64,6 +66,12 @@ sourceSets {
 }
 
 tasks {
+    test {
+        useJUnitPlatform()
+        failFast = true
+//        testLogging.showStandardStreams = true
+    }
+
     jar {
         enabled = false
         dependsOn(shadowJar)
@@ -77,7 +85,7 @@ tasks {
             attributes["Package"] = project.group
         }
         minimize()
-        archiveClassifier.set("")
+        archiveClassifier = ""
     }
 
     javadoc {
@@ -88,9 +96,14 @@ tasks {
             memberLevel = JavadocMemberLevel.PROTECTED
             overview = layout.projectDirectory.file("src/main/javadoc/overview.html").asFile.path
 
+            charSet = "UTF-8"
+            encoding = "UTF-8"
+            docEncoding = "UTF-8"
+
             addFileOption("-add-stylesheet", layout.projectDirectory.file("src/main/javadoc/themes/prism.css").asFile)
             addBooleanOption("-allow-script-in-comments", true)
             addStringOption("Xdoclint:none", "-quiet")
+            addStringOption("noqualifier", "all")
         }
         exclude(
             "**/dev/robocode/tankroyale/schema/**",
@@ -105,13 +118,7 @@ tasks {
         }
     }
 
-    test {
-        useJUnitPlatform()
-        failFast = true
-//        testLogging.showStandardStreams = true
-    }
-
-    val uploadDocs by registering(Copy::class) {
+    register<Copy>("copyJavaApiDocs") {
         dependsOn(javadoc)
 
         val javadocDir = layout.projectDirectory.dir("../../docs/api/java")
@@ -125,6 +132,15 @@ tasks {
         into(javadocDir)
     }
 
+    // Make sure documentation tasks are not part of the build task
+    afterEvaluate {
+        tasks.named("build").configure {
+            setDependsOn(dependsOn.filterNot {
+                it.toString().contains("javadoc") || it.toString().contains("copyJavaApiDocs")
+            })
+        }
+    }
+
     val javadocJar = named("javadocJar")
     val sourcesJar = named("sourcesJar") {
         dependsOn(compileJava)
@@ -133,6 +149,11 @@ tasks {
     publishing {
         publications {
             create<MavenPublication>("bot-api") {
+                val outJars = shadowJar.get().outputs.files
+                if (outJars.isEmpty) {
+                    throw GradleException("Proguard did not produce output artifacts")
+                }
+
                 artifact(shadowJar)
                 artifact(javadocJar)
                 artifact(sourcesJar)
@@ -142,28 +163,29 @@ tasks {
                 version
 
                 pom {
-                    name.set(javadocTitle)
-                    description.set(project.description)
-                    url.set("https://github.com/robocode-dev/tank-royale")
+                    name = javadocTitle
+                    description = project.description
+                    url = "https://github.com/robocode-dev/tank-royale"
 
                     licenses {
                         license {
-                            name.set("The Apache License, Version 2.0")
-                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                            name = "The Apache License, Version 2.0"
+                            url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
                         }
                     }
                     developers {
                         developer {
-                            id.set("fnl")
-                            name.set("Flemming Nørnberg Larsen")
-                            organization.set("flemming-n-larsen")
-                            organizationUrl.set("https://github.com/flemming-n-larsen")
+                            id = "fnl"
+                            name = "Flemming Nørnberg Larsen"
+                            url = "https://github.com/flemming-n-larsen"
+                            organization = "robocode.dev"
+                            organizationUrl = "https://robocode-dev.github.io/tank-royale/"
                         }
                     }
                     scm {
-                        connection.set("scm:git:git://github.com/robocode-dev/tank-royale.git")
-                        developerConnection.set("scm:git:ssh://github.com:robocode-dev/tank-royale.git")
-                        url.set("https://github.com/robocode-dev/tank-royale/tree/master")
+                        connection = "scm:git:git://github.com/robocode-dev/tank-royale.git"
+                        developerConnection = "scm:git:ssh://github.com:robocode-dev/tank-royale.git"
+                        url = "https://github.com/robocode-dev/tank-royale/tree/master"
                     }
                 }
             }

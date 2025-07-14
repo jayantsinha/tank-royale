@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
+using JetBrains.Annotations;
 using Robocode.TankRoyale.BotApi.Events;
 using Robocode.TankRoyale.BotApi.Internal;
-using SvgNet.Interfaces;
+using Robocode.TankRoyale.BotApi.Graphics;
 
 namespace Robocode.TankRoyale.BotApi;
 
@@ -12,16 +12,22 @@ namespace Robocode.TankRoyale.BotApi;
 /// notifications through the event handlers. Most bots can inherit from this class to get access
 /// to basic methods.
 /// </summary>
+[PublicAPI]
 public abstract class BaseBot : IBaseBot
 {
     internal readonly BaseBotInternals BaseBotInternals;
 
     /// <summary>
     /// Constructor for initializing a new instance of the BaseBot class.
-    /// This constructor should be used when both <see cref="BotInfo"/> and server URL is provided through
-    /// environment variables, i.e., when starting up the bot using a booter. These environment
-    /// variables must be set to provide the server URL and bot information, and are automatically
-    /// set by the booter tool for Robocode.
+    /// This constructor automatically looks for a config file and falls back to environment variables
+    /// if the config file is not found or is incomplete.
+    /// 
+    /// The config file is searched in the following locations:
+    /// 1. The current directory of the application
+    /// 2. The user's home directory
+    /// 
+    /// When using environment variables (either as fallback or primary configuration), these must be set
+    /// to provide the server URL and bot information, and are automatically set by the booter tool for Robocode.
     /// </summary>
     /// <example>
     /// Example of how to set the predefined environment variables used for connecting to the server:
@@ -44,7 +50,7 @@ public abstract class BaseBot : IBaseBot
     /// <li>BOT_INITIAL_POS=50,70, 270</li>
     /// </ul>
     ///
-    /// These environment variables <em>must</em> be set prior to using this constructor:
+    /// These environment variables <em>must</em> be set prior to using this constructor (if no config file is found):
     /// <ul>
     /// <li>BOT_NAME</li>
     /// <li>BOT_VERSION</li>
@@ -64,7 +70,21 @@ public abstract class BaseBot : IBaseBot
     ///
     /// If the SERVER_URL is not set, then this default URL is used: ws://localhost:7654
     /// </example>
-    protected BaseBot() => BaseBotInternals = new BaseBotInternals(this, null, null, null);
+    protected BaseBot()
+    {
+        // try to automatically read the bot config file
+        BotInfo botInfo = null;
+        try
+        {
+            botInfo = BotInfo.FromFile(GetType().Name + ".json");
+        }
+        catch (BotException)
+        {
+            // Ignore
+        }
+
+        BaseBotInternals = new BaseBotInternals(this, botInfo, null, null);
+    }
 
     /// <summary>
     /// Constructor for initializing a new instance of the BaseBot class.
@@ -96,7 +116,17 @@ public abstract class BaseBot : IBaseBot
     public void Start() => BaseBotInternals.Start();
 
     /// <inheritdoc/>
-    public void Go() => BaseBotInternals.Execute();
+    public void Go() {
+        // Process all events before executing the turn commands to mimic classic Robocode behavior where
+        // events are handled before the next turn's execution from the run() method.
+        var currentTick = BaseBotInternals.CurrentTickOrNull;
+        if (currentTick != null)
+        {
+            BaseBotInternals.DispatchEvents(currentTick.TurnNumber);
+        }
+
+        BaseBotInternals.Execute();
+    }
 
     /// <inheritdoc/>
     public string Variant => BaseBotInternals.Variant;

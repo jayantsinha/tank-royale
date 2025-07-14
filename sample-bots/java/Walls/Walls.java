@@ -1,14 +1,14 @@
 import dev.robocode.tankroyale.botapi.*;
 import dev.robocode.tankroyale.botapi.events.*;
-import java.awt.Color;
+import dev.robocode.tankroyale.botapi.graphics.Color;
 
 // ------------------------------------------------------------------
 // Walls
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
-// Moves around the outer edge with the gun facing in.
+// This robot navigates around the perimeter of the battlefield with
+// the gun pointed inward.
 // ------------------------------------------------------------------
 public class Walls extends Bot {
 
@@ -20,20 +20,15 @@ public class Walls extends Bot {
         new Walls().start();
     }
 
-    // Constructor, which loads the bot config file
-    Walls() {
-        super(BotInfo.fromFile("Walls.json"));
-    }
-
     // Called when a new round is started -> initialize and do some movement
     @Override
     public void run() {
         // Set colors
-        setBodyColor(Color.black);
-        setTurretColor(Color.black);
-        setRadarColor(Color.orange);
-        setBulletColor(Color.cyan);
-        setScanColor(Color.cyan);
+        setBodyColor(Color.BLACK);
+        setTurretColor(Color.BLACK);
+        setRadarColor(Color.ORANGE);
+        setBulletColor(Color.CYAN);
+        setScanColor(Color.CYAN);
 
         // Initialize moveAmount to the maximum possible for the arena
         moveAmount = Math.max(getArenaWidth(), getArenaHeight());

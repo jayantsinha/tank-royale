@@ -1,15 +1,13 @@
 import dev.robocode.tankroyale.botapi.*;
 import dev.robocode.tankroyale.botapi.events.*;
-
-import java.awt.*;
+import dev.robocode.tankroyale.botapi.graphics.*;
 
 // ---------------------------------------------------------------------------
 // PaintingBot
 // ---------------------------------------------------------------------------
-// A sample bot original made for Robocode by Pavel Savara based on MyFirstBot
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
+// A sample bot original made for Robocode by Pavel Savara
 //
-// A sample bot that demonstrate how to paint stuff on the battlefield.
+// Bemonstrates how to paint stuff on the battlefield.
 // Remember to enable Graphical Debugging for the bot when running a battle.
 // ---------------------------------------------------------------------------
 public class PaintingBot extends Bot {
@@ -21,11 +19,6 @@ public class PaintingBot extends Bot {
     // The main method starts our bot
     public static void main(String[] args) {
         new PaintingBot().start();
-    }
-
-    // Constructor, which loads the bot config file
-    PaintingBot() {
-        super(BotInfo.fromFile("PaintingBot.json"));
     }
 
     // Called when a new round is started -> initialize and do some movement
@@ -68,8 +61,10 @@ public class PaintingBot extends Bot {
 
             // Draw a red circle with the alpha value we calculated using anm ellipse
             var g = getGraphics();
-            g.setColor(new Color(0xff, 0x00, 0x00, alpha));
-            g.fillOval((int) scannedX - 20, (int) scannedY - 20, 40, 40);
+
+            var color = Color.fromRgba(0xff, 0x00, 0x00, alpha);
+            g.setFillColor(color);
+            g.fillCircle(scannedX, scannedY, 20); // 20 is the radius of the bots bounding circle
         }
     }
 }

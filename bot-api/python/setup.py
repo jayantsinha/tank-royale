@@ -1,19 +1,5 @@
-from setuptools import setup, find_packages
-from setuptools.errors import InternalError
-import subprocess
-import os
+from setuptools import setup, find_packages  # type: ignore - setuptools.setup is missing type.
 import configparser
-
-# Run the schema generation script
-result = subprocess.run(['python', 'schema_to_python.py', '-d', '../../schema/schemas/', '-o', 'generated/tank_royale/schema'])
-if result.returncode != 0:
-    raise InternalError(f'Schema generation return code {result.returncode}: {result.stderr}')
-
-# Create an empty __init__.py file in the generated/tank_royale directory
-init_file_path = 'generated/tank_royale/__init__.py'
-open(init_file_path, 'a').close()
-if not os.path.exists(init_file_path):
-    raise InternalError(f'Failed to create file: {init_file_path}')
 
 # Read version from gradle.properties file
 config = configparser.ConfigParser()
@@ -21,18 +7,29 @@ with open('../../gradle.properties') as f:
     config.read_string(f"[default]\n{f.read()}")
 version = config.get('default', 'version')
 
+# stubgen src/robocode_tank_royale -o src/robocode_tank_royale-stubs
+# stubgen generated/robocode_tank_royale -o generated/robocode_tank_royale-stubs
+# touch generated/robocode_tank_royale/tank_royale/schema/py.typed
+
 setup(
-    name='robocode-tank-royale',
+    name="robocode-tank-royale",
     version=version,
-    package_dir={"src": "src", "generated": "generated"},
-    packages=find_packages(where='src') + find_packages(where='generated'),
-    python_requires='>=3.10',
-    install_requires=[
-        'pillow>11',
-        'PyYAML>6'
+    description="The Python Bot API for Robocode Tank Royale",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
+    url="https://robocode-dev.github.io/tank-royale",
+    package_dir={
+        "robocode_tank_royale.bot_api": "src/robocode_tank_royale/bot_api",
+        "robocode_tank_royale.schema": "generated/robocode_tank_royale/tank_royale/schema",  # Specific override for schema
+    },
+    packages=[
+        "robocode_tank_royale.bot_api",
+        "robocode_tank_royale.schema",
+    ]
+    + [
+        f"robocode_tank_royale.bot_api.{subpackage}"
+        for subpackage in find_packages("src/robocode_tank_royale/bot_api")
     ],
-    description='The Python bot API for Robocode Tank Royale',
-    long_description=open('README.md').read(),
-    long_description_content_type='text/markdown',
-    url='https://robocode-dev.github.io/tank-royale',
+    python_requires=">=3.10",
+    install_requires=open("requirements.txt").read().splitlines(),
 )

@@ -1,12 +1,8 @@
-using System;
-using System.Drawing;
-using System.Text.RegularExpressions;
-using SvgNet;
-using SvgNet.Interfaces;
+using Robocode.TankRoyale.BotApi.Graphics;
 
 namespace Robocode.TankRoyale.BotApi.Internal;
 
-public class GraphicsState
+sealed class GraphicsState
 {
     private SvgGraphics _svgGraphics = new();
 
@@ -14,14 +10,11 @@ public class GraphicsState
 
     public string GetSvgOutput()
     {
-        var str = _svgGraphics.WriteSVGString(5000, 5000); // 5000x5000 is the maximum battlefield size
-        str = Regex.Replace(str, @"<rect[^>]*id=""background""[^>]*>", ""); // Remove background rectangle
-        return str;
+        return _svgGraphics.ToSvg();
     }
 
     public void Clear()
     {
-        _svgGraphics.Dispose();
-        _svgGraphics = new();
+        _svgGraphics.Clear();
     }
 }

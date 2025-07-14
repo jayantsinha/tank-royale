@@ -1,14 +1,14 @@
-using System.Drawing;
 using Robocode.TankRoyale.BotApi;
 using Robocode.TankRoyale.BotApi.Events;
+using Robocode.TankRoyale.BotApi.Graphics;
 
 // ------------------------------------------------------------------
 // RamFire
 // ------------------------------------------------------------------
 // A sample bot original made for Robocode by Mathew Nelson.
-// Ported to Robocode Tank Royale by Flemming N. Larsen.
 //
-// Drives at bots trying to ram them. Fires when it hits them.
+// This robot actively seeks out opponents, rams into them, and fires
+// with appropriate power based on the enemy's remaining energy.
 // ------------------------------------------------------------------
 public class RamFire : Bot
 {
@@ -20,16 +20,13 @@ public class RamFire : Bot
         new RamFire().Start();
     }
 
-    // Constructor, which loads the bot settings file
-    RamFire() : base(BotInfo.FromFile("RamFire.json")) { }
-
     // Called when a new round is started -> initialize and do some movement
     public override void Run()
     {
         // Set colors
-        BodyColor = Color.FromArgb(0x99, 0x99, 0x99);   // lighter gray
-        TurretColor = Color.FromArgb(0x88, 0x88, 0x88); // gray
-        RadarColor = Color.FromArgb(0x66, 0x66, 0x66);  // dark gray
+        BodyColor = Color.FromRgb(0x99, 0x99, 0x99);   // lighter gray
+        TurretColor = Color.FromRgb(0x88, 0x88, 0x88); // gray
+        RadarColor = Color.FromRgb(0x66, 0x66, 0x66);  // dark gray
 
         // Spin the gun around slowly... forever
         while (IsRunning)
@@ -79,6 +76,6 @@ public class RamFire : Bot
         else
             turnDirection = -1;
 
-        TurnRight(bearing);
+        TurnLeft(bearing);
     }
 }

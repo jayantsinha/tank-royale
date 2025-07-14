@@ -5,12 +5,10 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 description = "Robocode: Build the best - destroy the rest!"
 
 group = "dev.robocode.tankroyale"
-val version: String = libs.versions.tankroyale.get()
 
 val ossrhUsername: String? by project
 val ossrhPassword: String? by project
 val tankRoyaleGitHubToken: String? by project
-val `nuget-api-key`: String? by project
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -18,6 +16,11 @@ plugins {
     alias(libs.plugins.nexus.publish)
 
     alias(libs.plugins.benmanes.versions) // dependency management only
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
 }
 
 subprojects {
@@ -45,6 +48,7 @@ subprojects {
 
 tasks {
     register("build-release") {
+        description = "Builds a release"
         dependsOn(
             "bot-api:java:assemble",     // Bot API for Java VM
             "bot-api:dotnet:assemble",   // Bot API for .Net
@@ -53,14 +57,22 @@ tasks {
             "gui-app:assemble",          // GUI
             "sample-bots:java:zip",      // Sample bots for Java
             "sample-bots:csharp:zip",    // Sample bots for C#
-            "buildDocs:uploadDocs",      // Documentation
-            "bot-api:dotnet:uploadDocs", // Docfx documentation for .NET Bot API
-            "bot-api:java:uploadDocs"    // Javadocs for Java Bot API
+        )
+    }
+
+    register("upload-docs") {
+        description = "Generate and upload all documentation"
+        dependsOn(
+            "buildDocs:copyGeneratedDocs",      // Documentation
+            "bot-api:dotnet:copyDotnetApiDocs", // Docfx documentation for .NET Bot API
+            "bot-api:java:copyJavaApiDocs"      // Javadocs for Java Bot API
         )
     }
 
     register("create-release") {
+        description = "Creates a release"
         dependsOn("build-release")
+        dependsOn("upload-docs") // Make sure documentation is generated for releases
 
         doLast {
             val version = libs.versions.tankroyale.get()
@@ -74,9 +86,11 @@ tasks {
 
 nexusPublishing {
     repositories.apply {
-        sonatype { // only for users registered in Sonatype after 24 Feb 202
-            nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
-            snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
+        sonatype {
+            // Publishing By Using the Portal OSSRH Staging API:
+            // https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
+            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
 
             username.set(ossrhUsername)
             password.set(ossrhPassword)
@@ -88,5 +102,24 @@ val initializeSonatypeStagingRepository by tasks.existing
 subprojects {
     initializeSonatypeStagingRepository {
         shouldRunAfter(tasks.withType<Sign>())
+    }
+
+    // Apply common signing configuration to all subprojects
+    plugins.withId("signing") {
+        configure<SigningExtension> {
+            useGpgCmd() // Use GPG agent instead of key file
+        }
+    }
+
+    // Include Tank.ico in the published artifacts
+    plugins.withId("maven-publish") {
+        configure<PublishingExtension> {
+            publications.withType<MavenPublication> {
+                artifact(file("${rootProject.projectDir}/gfx/Tank/Tank.ico")) {
+                    classifier = "icon"
+                    extension = "ico"
+                }
+            }
+        }
     }
 }

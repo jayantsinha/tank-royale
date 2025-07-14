@@ -12,7 +12,10 @@ base {
     archivesName = "robocode-tankroyale-booter" // renames _all_ archive names
 }
 
-val baseArchiveName = "${base.libsDirectory.get()}/${base.archivesName.get()}-${project.version}"
+val artifactBasePath = "${base.libsDirectory.get()}/${base.archivesName.get()}-${project.version}"
+val finalJar = "$artifactBasePath.jar" // Final artifact path
+val intermediateJar = "$artifactBasePath-all.jar"
+
 
 buildscript {
     dependencies {
@@ -21,21 +24,24 @@ buildscript {
 }
 
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.serialization")
+    java
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     `maven-publish`
     signing
 }
 
 dependencies {
+    implementation(project(":lib:common"))
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.picocli)
     implementation(libs.jansi)
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
 
     withJavadocJar() // required for uploading to Sonatype
     withSourcesJar()
@@ -43,38 +49,57 @@ java {
 
 tasks {
     jar {
+        dependsOn(":lib:common:jar")
+
+        archiveClassifier = "all" // the final archive will not have this classifier
+
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
         manifest {
             attributes["Main-Class"] = jarManifestMainClass
             attributes["Implementation-Title"] = title
-            attributes["Implementation-Version"] = archiveVersion
+            attributes["Implementation-Version"] = project.version
             attributes["Implementation-Vendor"] = "robocode.dev"
             attributes["Package"] = project.group
         }
-        archiveClassifier.set("all") // the final archive will not have this classifier
 
         from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
-    }
-
-    val runJar by registering(JavaExec::class) {
-        dependsOn(jar)
-        classpath = files(jar)
     }
 
     val proguard by registering(ProGuardTask::class) { // used for compacting and code-shaking
         dependsOn(jar)
 
-        configuration("proguard-rules.pro")
+        doFirst {
+            if (!file(intermediateJar).exists()) {
+                logger.error("Intermediate JAR not found at expected location: $intermediateJar")
+                throw GradleException("Cannot proceed with ProGuard. Ensure the 'jar' task successfully creates $intermediateJar.")
+            }
+            logger.lifecycle("Found intermediate JAR: $intermediateJar. Proceeding with ProGuard.")
+        }
 
-        injars("$baseArchiveName-all.jar")
-        outjars("$baseArchiveName.jar")
+        configuration(file("proguard-rules.pro")) // Path to your ProGuard rules file
+
+        injars(intermediateJar) // Input JAR to process
+        outjars(finalJar)       // Output JAR after ProGuard processing
+
+        doLast {
+            if (!file(finalJar).exists()) {
+                logger.error("ProGuard task completed, but final JAR is missing: $finalJar")
+                throw GradleException("ProGuard did not produce the expected output.")
+            }
+            logger.lifecycle("ProGuard task completed successfully. Final JAR available at: $finalJar")
+        }
+    }
+
+    register("runJar", JavaExec::class) {
+        dependsOn(jar)
+        classpath = files(jar)
     }
 
     assemble {
         dependsOn(proguard)
         doLast {
-            delete("$baseArchiveName-all.jar")
+            delete(intermediateJar) // Ensure intermediate JAR is cleaned
         }
     }
 
@@ -84,6 +109,11 @@ tasks {
     publishing {
         publications {
             create<MavenPublication>("booter") {
+                val outJars = proguard.get().outJarFiles
+                if (outJars.isEmpty()) {
+                    throw GradleException("Proguard did not produce output artifacts")
+                }
+
                 artifact(proguard.get().outJarFiles[0]) {
                     builtBy(proguard)
                 }
@@ -95,28 +125,29 @@ tasks {
                 version
 
                 pom {
-                    name.set(title)
-                    description.set(project.description)
-                    url.set("https://github.com/robocode-dev/tank-royale")
+                    name = title
+                    description = project.description
+                    url = "https://github.com/robocode-dev/tank-royale"
 
                     licenses {
                         license {
-                            name.set("The Apache License, Version 2.0")
-                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                            name = "The Apache License, Version 2.0"
+                            url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
                         }
                     }
                     developers {
                         developer {
-                            id.set("fnl")
-                            name.set("Flemming Nørnberg Larsen")
-                            organization.set("flemming-n-larsen")
-                            organizationUrl.set("https://github.com/flemming-n-larsen")
+                            id = "fnl"
+                            name = "Flemming Nørnberg Larsen"
+                            url = "https://github.com/flemming-n-larsen"
+                            organization = "robocode.dev"
+                            organizationUrl = "https://robocode-dev.github.io/tank-royale/"
                         }
                     }
                     scm {
-                        connection.set("scm:git:git://github.com/robocode-dev/tank-royale.git")
-                        developerConnection.set("scm:git:ssh://github.com:robocode-dev/tank-royale.git")
-                        url.set("https://github.com/robocode-dev/tank-royale/tree/master")
+                        connection = "scm:git:git://github.com/robocode-dev/tank-royale.git"
+                        developerConnection = "scm:git:ssh://github.com:robocode-dev/tank-royale.git"
+                        url = "https://github.com/robocode-dev/tank-royale/tree/master"
                     }
                 }
             }
