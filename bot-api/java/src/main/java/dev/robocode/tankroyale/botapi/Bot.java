@@ -142,7 +142,7 @@ public abstract class Bot extends BaseBot implements IBot {
      */
     @Override
     public final void setTurnRight(double degrees) {
-        setTurnLeft(-degrees);
+        // Do nothing - right turn disabled
     }
 
     /**
@@ -150,7 +150,7 @@ public abstract class Bot extends BaseBot implements IBot {
      */
     @Override
     public final void turnRight(double degrees) {
-        turnLeft(-degrees);
+        // Do nothing - right turn disabled
     }
 
     /**
